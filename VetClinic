@@ -1,0 +1,317 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <algorithm>
+using namespace std;
+
+// Класс владельца животного
+class Client {
+private:
+    int id;
+    string name;
+    string phone;
+
+public:
+    Client(int id, const string &name, const string &phone)
+        : id(id), name(name), phone(phone) {}
+
+    int getID() const { return id; }
+    string getName() const { return name; }
+    string getPhone() const { return phone; }
+
+    void setName(const string &newName) { name = newName; }
+    void setPhone(const string &newPhone) { phone = newPhone; }
+};
+
+// Класс животное
+class Animal {
+private:
+    int id;
+    string name;
+    string type;
+    int age;
+    int ownerID;
+
+public:
+    Animal(int id, const string &name, const string &type, int age, int ownerID)
+        : id(id), name(name), type(type), age(age), ownerID(ownerID) {}
+
+    int getID() const { return id; }
+    string getName() const { return name; }
+    string getType() const { return type; }
+    int getAge() const { return age; }
+    int getOwnerID() const { return ownerID; }
+
+    void setName(const string &newName) { name = newName; }
+    void setType(const string &newType) { type = newType; }
+};
+
+// Класс ветеринара
+class Veterinarian {
+private:
+    int id;
+    string name;
+    string specialization;
+    vector<string> availableTimes;
+
+public:
+    Veterinarian(int id, const string &name, const string &specialization, const vector<string> &availableTimes)
+        : id(id), name(name), specialization(specialization), availableTimes(availableTimes) {}
+
+    int getID() const { return id; }
+    string getName() const { return name; }
+    string getSpecialization() const { return specialization; }
+
+    const vector<string> &getAvailableTimes() const { return availableTimes; }
+
+    bool isTimeAvailable(const string &time) {
+        return find(availableTimes.begin(), availableTimes.end(), time) != availableTimes.end();
+    }
+
+    void bookTime(const string &time) {
+        auto it = find(availableTimes.begin(), availableTimes.end(), time);
+        if (it != availableTimes.end()) {
+            availableTimes.erase(it);
+        }
+    }
+};
+
+// Класс услуги
+class Service {
+private:
+    int id;
+    string name;
+    double cost;
+
+public:
+    Service(int id, const string &name, double cost)
+        : id(id), name(name), cost(cost) {}
+
+    int getID() const { return id; }
+    string getName() const { return name; }
+    double getCost() const { return cost; }
+};
+
+// Класс записи на прием
+class Appointment {
+private:
+    int id;
+    string dateTime;
+    int vetID;
+    int clientID;
+    int animalID;
+    int serviceID;
+
+public:
+    Appointment(int id, const string &dateTime, int vetID, int clientID, int animalID, int serviceID)
+        : id(id), dateTime(dateTime), vetID(vetID), clientID(clientID), animalID(animalID), serviceID(serviceID) {}
+
+    int getID() const { return id; }
+    string getDateTime() const { return dateTime; }
+    int getVetID() const { return vetID; }
+};
+
+// Главный класс клиники
+class Clinic {
+private:
+    vector<Client> clients;
+    vector<Animal> animals;
+    vector<Veterinarian> veterinarians;
+    vector<Service> services;
+    vector<Appointment> appointments;
+    int nextAppointmentID = 1;
+
+public:
+    void addClient(const Client &client) { clients.push_back(client); }
+    void addAnimal(const Animal &animal) { animals.push_back(animal); }
+    void addVeterinarian(const Veterinarian &vet) { veterinarians.push_back(vet); }
+    void addService(const Service &service) { services.push_back(service); }
+
+    void bookAppointment() {
+        int clientID, animalID, vetID, serviceID;
+        string dateTime;
+
+        cout << "Введите ID клиента: ";
+        cin >> clientID;
+
+        cout << "Введите ID животного: ";
+        cin >> animalID;
+
+        cout << "Введите ID ветеринара: ";
+        cin >> vetID;
+
+        cout << "Введите ID услуги: ";
+        cin >> serviceID;
+
+        cout << "Введите дату и время (формат ДД.ММ.ГГГГ ЧЧ:ММ): ";
+        cin.ignore();
+        getline(cin, dateTime);
+
+        auto vetIt = find_if(veterinarians.begin(), veterinarians.end(), [vetID](const Veterinarian &vet) {
+            return vet.getID() == vetID;
+        });
+
+        if (vetIt != veterinarians.end()) {
+            if (vetIt->isTimeAvailable(dateTime)) {
+                appointments.emplace_back(nextAppointmentID++, dateTime, vetID, clientID, animalID, serviceID);
+                vetIt->bookTime(dateTime);
+                cout << "Запись успешно создана!\n";
+            } else {
+                cout << "Выбранное время занято. Пожалуйста, выберите другое время.\n";
+            }
+        } else {
+            cout << "Ветеринар с таким ID не найден.\n";
+        }
+    }
+
+    void listVetSchedules() {
+        cout << "Список врачей и их занятость:\n";
+        for (const auto &vet : veterinarians) {
+            cout << "Ветеринар: " << vet.getName() << " (Специализация: " << vet.getSpecialization() << ")\n";
+
+            // Проверяем занятые времена
+            bool hasAppointments = false;
+            for (const auto &appointment : appointments) {
+                if (appointment.getVetID() == vet.getID()) {
+                    cout << "- Занято: " << appointment.getDateTime() << "\n";
+                    hasAppointments = true;
+                }
+            }
+
+            // Выводим свободные времена
+            if (!hasAppointments) {
+                cout << "- Нет записей. Все времена свободны.\n";
+            } else {
+                cout << "Свободные времена:\n";
+                for (const auto &time : vet.getAvailableTimes()) {
+                    cout << "- " << time << "\n";
+                }
+            }
+            cout << "\n";
+        }
+    }
+
+    void displayMenu() {
+        int choice;
+        do {
+            cout << "\nМеню клиники:\n";
+            cout << "1. Добавить клиента\n";
+            cout << "2. Добавить животное\n";
+            cout << "3. Добавить ветеринара\n";
+            cout << "4. Добавить услугу\n";
+            cout << "5. Записать на прием\n";
+            cout << "6. Список врачей и их занятость\n";
+            cout << "7. Выйти\n";
+            cout << "Выберите действие: ";
+            cin >> choice;
+
+            switch (choice) {
+            case 1: {
+                int id;
+                string name, phone;
+                cout << "Введите ID клиента: ";
+                cin >> id;
+                cout << "Введите имя клиента: ";
+                cin.ignore();
+                getline(cin, name);
+                cout << "Введите телефон клиента: ";
+                getline(cin, phone);
+                addClient(Client(id, name, phone));
+                break;
+            }
+            case 2: {
+                int id, ownerID, age;
+                string name, type;
+                cout << "Введите ID животного: ";
+                cin >> id;
+                cout << "Введите имя животного: ";
+                cin.ignore();
+                getline(cin, name);
+                cout << "Введите вид животного: ";
+                getline(cin, type);
+                cout << "Введите возраст животного: ";
+                cin >> age;
+                cout << "Введите ID владельца: ";
+                cin >> ownerID;
+                addAnimal(Animal(id, name, type, age, ownerID));
+                break;
+            }
+            case 3: {
+                int id;
+                string name, specialization;
+                vector<string> availableTimes;
+                string time;
+
+                cout << "Введите ID ветеринара: ";
+                cin >> id;
+                cout << "Введите имя ветеринара: ";
+                cin.ignore();
+                getline(cin, name);
+                cout << "Введите специализацию: ";
+                getline(cin, specialization);
+
+                cout << "Введите доступное время (введите 'end' для завершения):\n";
+                while (true) {
+                    getline(cin, time);
+                    if (time == "end") break;
+                    availableTimes.push_back(time);
+                }
+
+                addVeterinarian(Veterinarian(id, name, specialization, availableTimes));
+                break;
+            }
+            case 4: {
+                int id;
+                string name;
+                double cost;
+                cout << "Введите ID услуги: ";
+                cin >> id;
+                cout << "Введите название услуги: ";
+                cin.ignore();
+                getline(cin, name);
+                cout << "Введите стоимость услуги: ";
+                cin >> cost;
+                addService(Service(id, name, cost));
+                break;
+            }
+            case 5:
+                bookAppointment();
+                break;
+            case 6:
+                listVetSchedules();
+                break;
+            case 7:
+                cout << "Выход из программы.\n";
+                break;
+            default:
+                cout << "Некорректный ввод. Попробуйте снова.\n";
+            }
+        } while (choice != 7);
+    }
+
+    void initializeTestData() {
+        addClient(Client(1, "галина Иванова", "+79012345678"));
+        addClient(Client(2, "Иван Петров", "+79087654321"));
+        addClient(Client(3, "Екатерина Петрушкова", "+79011223344"));
+
+        addAnimal(Animal(1, "Барсик", "Кот", 3, 1));
+        addAnimal(Animal(2, "Шарик", "Собака", 5, 2));
+        addAnimal(Animal(3, "Рыжик", "Кот", 2, 3));
+
+        addVeterinarian(Veterinarian(1, "Доктор Смирнов", "Терапевт", {"12.12.2024 10:00", "12.12.2024 11:00"}));
+        addVeterinarian(Veterinarian(2, "Доктор Кузнецов", "Хирург", {"12.12.2024 10:00", "12.12.2024 12:00"}));
+        addVeterinarian(Veterinarian(3, "Доктор Васнецова", "Дантист", {"12.12.2024 09:00", "12.12.2024 10:30"}));
+
+        addService(Service(1, "Общий осмотр", 1500.0));
+        addService(Service(2, "Вакцинация", 2000.0));
+        addService(Service(3, "Стерилизация", 5000.0));
+    }
+};
+
+int main() {
+    Clinic clinic;
+    clinic.initializeTestData();
+    clinic.displayMenu();
+    return 0;
+}
